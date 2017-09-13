@@ -1,6 +1,6 @@
 # *bpost* Batch Address Validation
 
-*bpost* ([Belgian Post Group](http://www.bpost.be/)) provides an API to validate belgian address : <http://www.bpost.be/site/en/webservice-address>.
+*bpost* ([Belgian Post Group](https://www.bpost.be/)) provides an API to validate belgian address : <https://www.bpost.be/site/en/webservice-address>.
 
 The goal of the "*bpost* Batch Address Validation" tool is to validate a huge amount of addresses by querying the *bpost* API.
 
