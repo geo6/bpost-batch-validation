@@ -14,6 +14,8 @@ $cursor = 1;
 
 $client = new Client();
 
+$source = array();
+
 $request = array();
 $request['ValidateAddressesRequest'] = array(
   'AddressToValidateList' => array(
@@ -49,8 +51,9 @@ if (isset($file) && file_exists($file)) {
       }
 
       $id = $data[0];
+      $source[$id] = $data;
 
-      echo $data[0].' | '.$cursor.' | '.date('c').PHP_EOL;
+      echo $cursor.' | '.$id.' | '.date('c').PHP_EOL;
 
       $r = array(
         '@id' => $id,
@@ -74,7 +77,7 @@ if (isset($file) && file_exists($file)) {
       $request['ValidateAddressesRequest']['AddressToValidateList']['AddressToValidate'][] = $r;
 
       if (($cursor % 200) === 0) {
-        validate_exec($dir, $client, $request);
+        validate_exec($dir, $client, $request, $source);
 
         $request['ValidateAddressesRequest']['AddressToValidateList']['AddressToValidate'] = array();
       }
@@ -83,7 +86,7 @@ if (isset($file) && file_exists($file)) {
     }
     fclose($handle);
 
-    validate_exec($dir, $client, $request);
+    validate_exec($dir, $client, $request, $source);
   }
 } else {
   trigger_error(sprintf('File "%s" does not exists!', $argv[1]), E_USER_ERROR);
@@ -92,7 +95,7 @@ if (isset($file) && file_exists($file)) {
 /*
  *
  */
-function validate_exec($directory, $client, $request) {
+function validate_exec($directory, $client, $request, &$source) {
   $fp = fopen($directory.'/result.csv', 'a');
   $fp_error = fopen($directory.'/error.csv', 'a');
 
@@ -127,23 +130,15 @@ function validate_exec($directory, $client, $request) {
         }
       }
 
+      $data = $source[$request_data['@id']];
+
       if (!empty($errors)) {
-        $data = array(
-          $request_data['@id'],
-          $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetNumber'],
-          $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetName'],
-          $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['PostalCode'],
-          $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['MunicipalityName'],
+        $data = array_merge($data, array(
           implode('; ', $errors)
-        );
+        ));
         fputcsv($fp_error, $data);
       } else {
-        $data = array(
-          $request_data['@id'],
-          $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetNumber'],
-          $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetName'],
-          $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['PostalCode'],
-          $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['MunicipalityName'],
+        $data = array_merge($data, array(
           (isset($response_data->PostalAddress->StructuredDeliveryPointLocation->StreetNumber) ? $response_data->PostalAddress->StructuredDeliveryPointLocation->StreetNumber : ''),
           (isset($response_data->PostalAddress->StructuredDeliveryPointLocation->StreetName) ? $response_data->PostalAddress->StructuredDeliveryPointLocation->StreetName : ''),
           (isset($response_data->PostalAddress->StructuredPostalCodeMunicipality->PostalCode) ? $response_data->PostalAddress->StructuredPostalCodeMunicipality->PostalCode : ''),
@@ -153,7 +148,7 @@ function validate_exec($directory, $client, $request) {
           (isset($response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Longitude->Value) ? $response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Longitude->Value : ''),
           (isset($response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Latitude->Value) ? $response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Latitude->Value : ''),
           (!empty($warnings) ? implode('; ', $warnings) : '')
-        );
+        ));
         fputcsv($fp, $data);
       }
     }
@@ -173,6 +168,8 @@ function validate_exec($directory, $client, $request) {
 
     trigger_error($request_error, E_USER_ERROR);
   }
+
+  $source = array();
 }
 
 exit();
