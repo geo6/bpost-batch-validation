@@ -89,7 +89,7 @@ if (isset($file) && file_exists($file)) {
     validate_exec($dir, $client, $request, $source);
   }
 } else {
-  trigger_error(sprintf('File "%s" does not exists!', $argv[1]), E_USER_ERROR);
+  trigger_error(sprintf('File "%s" does not exists!', $file), E_USER_ERROR);
 }
 
 /*
