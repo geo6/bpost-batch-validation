@@ -50,7 +50,7 @@ if (isset($file) && file_exists($file)) {
 
       $id = $data[0];
 
-      echo $data[0].' | '.($cursor++).' | '.date('c').PHP_EOL;
+      echo $data[0].' | '.$cursor.' | '.date('c').PHP_EOL;
 
       $r = array(
         '@id' => $id,
@@ -78,6 +78,8 @@ if (isset($file) && file_exists($file)) {
 
         $request['ValidateAddressesRequest']['AddressToValidateList']['AddressToValidate'] = array();
       }
+
+      $cursor++;
     }
     fclose($handle);
 
@@ -93,11 +95,11 @@ if (isset($file) && file_exists($file)) {
 function validate_exec($directory, $client, $request) {
   $fp = fopen($directory.'/result.csv', 'a');
   $fp_error = fopen($directory.'/error.csv', 'a');
-  $fp_warning = fopen($directory.'/warning.csv', 'a');
 
   $request_error = FALSE;
 
   try {
+    //file_put_contents('data/request.csv', json_encode($request));
     $response = $client->request('POST', 'https://webservices-pub.bpost.be/ws/ExternalMailingAddressProofingCSREST_v1/address/validateAddresses', [
         'json' => $request
     ]);
@@ -106,55 +108,53 @@ function validate_exec($directory, $client, $request) {
       $request_data = $request['ValidateAddressesRequest']['AddressToValidateList']['AddressToValidate'][$i];
       $response_data = $r->ValidatedAddressList->ValidatedAddress[0];
 
-      $data = array(
-        $request_data['@id'],
-        $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetNumber'],
-        $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetName'],
-        $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['PostalCode'],
-        $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['MunicipalityName'],
-        (isset($response_data->PostalAddress->StructuredDeliveryPointLocation->StreetNumber) ? $response_data->PostalAddress->StructuredDeliveryPointLocation->StreetNumber : ''),
-        (isset($response_data->PostalAddress->StructuredDeliveryPointLocation->StreetName) ? $response_data->PostalAddress->StructuredDeliveryPointLocation->StreetName : ''),
-        (isset($response_data->PostalAddress->StructuredPostalCodeMunicipality->PostalCode) ? $response_data->PostalAddress->StructuredPostalCodeMunicipality->PostalCode : ''),
-        (isset($response_data->PostalAddress->StructuredPostalCodeMunicipality->MunicipalityName) ? $response_data->PostalAddress->StructuredPostalCodeMunicipality->MunicipalityName : ''),
-        (isset($response_data->AddressLanguage) ? $response_data->AddressLanguage : ''),
-        (isset($response_data->NumberOfSuffix) ? $response_data->NumberOfSuffix : ''),
-        (isset($response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Longitude->Value) ? $response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Longitude->Value : ''),
-        (isset($response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Latitude->Value) ? $response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Latitude->Value : '')
-      );
-      fputcsv($fp, $data);
+      $errors = array();
+      $warnings = array();
 
       if (isset($r->Error)) {
         foreach ($r->Error as $error) {
           switch ($error->ErrorSeverity) {
             case 'error':
-              $data = array(
-                $request_data['@id'],
-                $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetNumber'],
-                $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetName'],
-                $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['PostalCode'],
-                $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['MunicipalityName'],
-                $error->ErrorCode,
-                $error->ComponentRef
-              );
-              fputcsv($fp_error, $data);
+              $errors[] = $error->ErrorCode;
               break;
             case 'warning':
-              $data = array(
-                $request_data['@id'],
-                $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetNumber'],
-                $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetName'],
-                $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['PostalCode'],
-                $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['MunicipalityName'],
-                $error->ErrorCode,
-                $error->ComponentRef
-              );
-              fputcsv($fp_warning, $data);
+              $warnings[] = $error->ErrorCode.': '.$error->ComponentRef;
               break;
             default:
               trigger_error(sprintf('ERROR [%s] : %s (%s)', $error->ErrorSeverity, $error->ErrorCode, $error->ComponentRef), E_USER_WARNING);
               break;
           }
         }
+      }
+
+      if (!empty($errors)) {
+        $data = array(
+          $request_data['@id'],
+          $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetNumber'],
+          $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetName'],
+          $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['PostalCode'],
+          $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['MunicipalityName'],
+          implode('; ', $errors)
+        );
+        fputcsv($fp_error, $data);
+      } else {
+        $data = array(
+          $request_data['@id'],
+          $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetNumber'],
+          $request_data['PostalAddress']['DeliveryPointLocation']['StructuredDeliveryPointLocation']['StreetName'],
+          $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['PostalCode'],
+          $request_data['PostalAddress']['PostalCodeMunicipality']['StructuredPostalCodeMunicipality']['MunicipalityName'],
+          (isset($response_data->PostalAddress->StructuredDeliveryPointLocation->StreetNumber) ? $response_data->PostalAddress->StructuredDeliveryPointLocation->StreetNumber : ''),
+          (isset($response_data->PostalAddress->StructuredDeliveryPointLocation->StreetName) ? $response_data->PostalAddress->StructuredDeliveryPointLocation->StreetName : ''),
+          (isset($response_data->PostalAddress->StructuredPostalCodeMunicipality->PostalCode) ? $response_data->PostalAddress->StructuredPostalCodeMunicipality->PostalCode : ''),
+          (isset($response_data->PostalAddress->StructuredPostalCodeMunicipality->MunicipalityName) ? $response_data->PostalAddress->StructuredPostalCodeMunicipality->MunicipalityName : ''),
+          (isset($response_data->AddressLanguage) ? $response_data->AddressLanguage : ''),
+          (isset($response_data->NumberOfSuffix) ? $response_data->NumberOfSuffix : ''),
+          (isset($response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Longitude->Value) ? $response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Longitude->Value : ''),
+          (isset($response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Latitude->Value) ? $response_data->ServicePointDetail->GeographicalLocationInfo->GeographicalLocation->Latitude->Value : ''),
+          (!empty($warnings) ? implode('; ', $warnings) : '')
+        );
+        fputcsv($fp, $data);
       }
     }
   } catch (ClientException $e) {
@@ -165,7 +165,6 @@ function validate_exec($directory, $client, $request) {
     $request_error = $e->getMessage();
   }
 
-  fclose($fp_warning);
   fclose($fp_error);
   fclose($fp);
 
