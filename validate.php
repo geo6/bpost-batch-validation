@@ -76,7 +76,7 @@ if (isset($file) && file_exists($file)) {
       );
       $request['ValidateAddressesRequest']['AddressToValidateList']['AddressToValidate'][] = $r;
 
-      if (($cursor % 200) === 0) {
+      if (($cursor % 100) === 0) {
         validate_exec($dir, $client, $request, $source);
 
         $request['ValidateAddressesRequest']['AddressToValidateList']['AddressToValidate'] = array();
