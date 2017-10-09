@@ -36,7 +36,10 @@ if (isset($file) && file_exists($file)) {
 
   if (!file_exists($dir) || !is_dir($dir)) {
     mkdir($dir);
-  } else {
+  }
+
+  if ($start === 0) {
+    echo sprintf('Clean directory "%s".', $dir).PHP_EOL;
     $glob = glob($dir.'/*');
     foreach ($glob as $g) {
       unlink($g);
