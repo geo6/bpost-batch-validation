@@ -4,12 +4,13 @@
 
 The goal of the "*bpost* Batch Address Validation" tool is to validate a huge amount of addresses by querying the *bpost* API.
 
-# Install
+## Install
 
 The tool only requires **PHP 7.0+**.
 
 ```
 git clone https://github.com/geo6/bpost-batch-validation
+cd bpost-batch-validation/
 
 # Install Composer
 curl -sS https://getcomposer.org/installer | php
@@ -18,7 +19,7 @@ curl -sS https://getcomposer.org/installer | php
 php composer.phar install
 ```
 
-# Usage
+## Usage
 
 To process the `data/test.csv`, run :
 
@@ -32,7 +33,7 @@ If you want to skip some records, you can add `--start` option :
 php validate.php --file=data/test.csv --start=2
 ```
 
-## File structure
+### File structure
 
 Your file must be a valid CSV (Comma-separated values) file.  
 The structure is the following :
